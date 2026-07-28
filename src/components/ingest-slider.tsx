@@ -31,9 +31,9 @@ export function IngestSlider({ disabled = false, busy = false, onConfirm }: Prop
   const measure = useCallback(() => {
     const track = trackRef.current;
     if (!track) return;
-    const thumb = 36;
-    const pad = 4;
-    setMaxTravel(Math.max(0, track.clientWidth - thumb - pad * 2));
+    // Thumb rides in a full-height strip (w-11 = 44px) so travel clears that strip.
+    const strip = 44;
+    setMaxTravel(Math.max(0, track.clientWidth - strip));
   }, []);
 
   useEffect(() => {
@@ -146,7 +146,7 @@ export function IngestSlider({ disabled = false, busy = false, onConfirm }: Prop
     >
       <div
         className="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-primary/20 transition-[width] duration-75"
-        style={{ width: `${Math.max(40, x + 40)}px` }}
+        style={{ width: `${Math.max(44, x + 44)}px` }}
       />
 
       <div
@@ -158,17 +158,18 @@ export function IngestSlider({ disabled = false, busy = false, onConfirm }: Prop
         <ChevronRight className="size-4 opacity-55" />
       </div>
 
+      {/* Full-height strip + flex center — avoids % translate subpixel drift */}
       <div
         aria-hidden
-        className="pointer-events-none absolute left-1 z-10 flex size-9 items-center justify-center rounded-full border border-border bg-background text-foreground"
+        className="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-11 items-center justify-center"
         style={{
-          top: "50%",
-          // Use CSS `translate` only (not `transform`) so nothing fights vertical centering.
-          translate: `${x}px -50%`,
+          translate: `${x}px 0px`,
           transition: dragging.current ? "none" : "translate 180ms ease-out",
         }}
       >
-        <ChevronRight className="size-4" />
+        <div className="flex size-8 items-center justify-center rounded-full border border-border bg-background text-foreground">
+          <ChevronRight className="size-4" />
+        </div>
       </div>
     </div>
   );
