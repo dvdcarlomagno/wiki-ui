@@ -4,8 +4,9 @@ import {
   listWikiMarkdownFiles,
 } from "@/lib/github";
 
-const MAX_CHARS = 90_000;
-const MAX_PAGES = 18;
+// Keep prompt lean so OpenRouter usually finishes before browser fetch timeouts.
+const MAX_CHARS = 45_000;
+const MAX_PAGES = 12;
 
 function tokenize(text: string) {
   return text

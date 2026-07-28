@@ -1,6 +1,15 @@
+import type { CursorImage } from "@/lib/cursor-agents";
+
+export type ChatTextPart = { type: "text"; text: string };
+export type ChatImagePart = {
+  type: "image_url";
+  image_url: { url: string };
+};
+export type ChatContentPart = ChatTextPart | ChatImagePart;
+
 export type ChatMessage = {
   role: "system" | "user" | "assistant";
-  content: string;
+  content: string | ChatContentPart[];
 };
 
 export function openRouterModel() {
@@ -15,6 +24,24 @@ function apiKey() {
     );
   }
   return key;
+}
+
+export function buildUserContent(
+  text: string,
+  images: CursorImage[] = [],
+): string | ChatContentPart[] {
+  if (images.length === 0) return text;
+  return [
+    { type: "text", text },
+    ...images.map(
+      (image): ChatImagePart => ({
+        type: "image_url",
+        image_url: {
+          url: `data:${image.mimeType};base64,${image.data}`,
+        },
+      }),
+    ),
+  ];
 }
 
 export async function chatCompletion(messages: ChatMessage[]) {

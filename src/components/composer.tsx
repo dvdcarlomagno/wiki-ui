@@ -186,19 +186,17 @@ export function Composer({
             e.target.value = "";
           }}
         />
-        {!queryOnly && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-10 shrink-0 rounded-full text-foreground hover:bg-muted"
-            onClick={() => inputRef.current?.click()}
-            aria-label="Attach file"
-            disabled={!!busy}
-          >
-            <Paperclip className="size-5" />
-          </Button>
-        )}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-10 shrink-0 rounded-full text-foreground hover:bg-muted"
+          onClick={() => inputRef.current?.click()}
+          aria-label="Attach file"
+          disabled={!!busy || queryDisabled}
+        >
+          <Paperclip className="size-5" />
+        </Button>
         {!queryOnly && (
           <IngestSlider
             disabled={!!busy}

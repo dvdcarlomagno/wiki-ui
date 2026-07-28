@@ -1,11 +1,23 @@
 import { NextResponse } from "next/server";
-import { parseAgentForm } from "@/lib/agent-request";
-import { chatCompletion, type ChatMessage } from "@/lib/openrouter";
+import {
+  attachmentUrlSourceText,
+  formatQueryAttachments,
+  parseAgentForm,
+} from "@/lib/agent-request";
+import {
+  fetchLinkedPages,
+  formatLinkedPages,
+} from "@/lib/fetch-linked-pages";
+import {
+  buildUserContent,
+  chatCompletion,
+  type ChatMessage,
+} from "@/lib/openrouter";
 import { loadSkill } from "@/lib/skill-loader";
 import { buildWikiContext } from "@/lib/wiki-context";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const MAX_HISTORY_TURNS = 5;
 
@@ -45,7 +57,8 @@ function parseHistory(raw: FormDataEntryValue | null): HistoryTurn[] {
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
-    const { text, repoUrl, attachmentNotes } = await parseAgentForm(formData);
+    const form = await parseAgentForm(formData);
+    const { text, repoUrl, images } = form;
     if (!text.trim()) {
       return NextResponse.json(
         { error: "Query requires a text question" },
@@ -64,17 +77,26 @@ export async function POST(req: Request) {
     }
 
     const skill = await loadSkill(repoUrl, "query");
-    const { context, pageCount, ref } = await buildWikiContext(repoUrl, text);
+    const attachmentBlock = formatQueryAttachments(form);
+    const [{ context, pageCount, ref }, linkedPages] = await Promise.all([
+      buildWikiContext(repoUrl, text),
+      fetchLinkedPages(text, attachmentUrlSourceText(form)),
+    ]);
+    const linkedContent = formatLinkedPages(linkedPages);
 
     const system = [
       skill.content,
       "",
       "You are answering against a compiled wiki (read-only for this request).",
-      "Do not invent facts missing from the provided wiki context.",
+      "Ground wiki facts in the provided wiki context; do not invent wiki pages.",
+      "Evaluate ALL provided evidence: LINKED PAGE CONTENT, ATTACHMENTS (text and images), and WIKI CONTEXT.",
+      "If LINKED PAGE CONTENT is provided, you MAY read and use it for the user question.",
+      "Do not claim you lack access to a link when its content is present under LINKED PAGE CONTENT.",
+      "If a linked page fetch failed or an attachment could not be extracted, say that explicitly.",
       "Answer in the same language as the user question.",
       "Lead with a direct answer, then cite wiki pages by path when useful.",
       "If evidence is missing, say what is missing.",
-      "You may use earlier turns in this conversation for continuity, but ground facts in the latest wiki context.",
+      "You may use earlier turns in this conversation for continuity, but ground facts in the latest wiki context, linked pages, and attachments.",
     ].join("\n");
 
     const messages: ChatMessage[] = [{ role: "system", content: system }];
@@ -84,10 +106,14 @@ export async function POST(req: Request) {
       messages.push({ role: "assistant", content: turn.answer });
     }
 
-    const user = [
+    const userText = [
       `QUESTION:\n${text}`,
       "",
-      attachmentNotes ? `ATTACHMENTS:\n${attachmentNotes}` : "",
+      attachmentBlock ? `ATTACHMENTS:\n\n${attachmentBlock}` : "",
+      "",
+      linkedContent
+        ? `LINKED PAGE CONTENT (${linkedPages.filter((p) => p.ok).length}/${linkedPages.length} fetched):\n\n${linkedContent}`
+        : "",
       "",
       `WIKI CONTEXT (branch ${ref}, ${pageCount} pages):\n`,
       context,
@@ -95,7 +121,10 @@ export async function POST(req: Request) {
       .filter(Boolean)
       .join("\n");
 
-    messages.push({ role: "user", content: user });
+    messages.push({
+      role: "user",
+      content: buildUserContent(userText, images),
+    });
 
     const { answer, model } = await chatCompletion(messages);
 
@@ -109,6 +138,17 @@ export async function POST(req: Request) {
       ref,
       skillSource: skill.source,
       warning: skill.warning,
+      linkedPages: linkedPages.map((p) => ({
+        url: p.url,
+        ok: p.ok,
+        title: p.title,
+        error: p.error,
+      })),
+      attachments: {
+        textCount: form.textAttachments.length,
+        imageCount: images.length,
+        binaryCount: form.binaryAttachments.length,
+      },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Query failed";
