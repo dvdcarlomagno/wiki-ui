@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     const { text, repoUrl, attachmentNotes } = await parseAgentForm(formData);
     if (!text.trim()) {
       return NextResponse.json(
-        { error: "La Query richiede una domanda in testo" },
+        { error: "Query requires a text question" },
         { status: 400 },
       );
     }

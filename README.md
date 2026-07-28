@@ -31,6 +31,8 @@ Open [http://localhost:3000](http://localhost:3000).
 | `APP_PASSWORD` | yes | Shared operator password |
 | `AUTH_SECRET` | recommended | JWT signing secret (falls back to `APP_PASSWORD` in dev) |
 | `DEFAULT_WIKI_REPO_URL` | yes | `https://github.com/OWNER/wiki-repo` |
+| `SKILLS_REPO_URL` | no | GitHub repo for `skills/*.md` (defaults to wiki repo) |
+| `SKILLS_LOCAL_DIR` | no | Local folder containing `query.md` / `ingest.md` / `lint.md` (wins over GitHub) |
 | `OPENROUTER_API_KEY` | for Query | OpenRouter API key |
 | `OPENROUTER_MODEL` | no | Default `deepseek/deepseek-v4-flash` |
 | `CURSOR_API_KEY` | for Ingest | Cursor Cloud Agents API key |

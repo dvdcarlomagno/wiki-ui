@@ -216,7 +216,7 @@ export default function HomePage() {
       {!hydrated ? (
         <div className="flex-1" aria-hidden />
       ) : !chatMode ? (
-        <div className="flex-1 space-y-4 pb-6">
+        <div className="flex flex-1 flex-col justify-center space-y-4 pb-6">
           {composer}
           {error && <p className="text-sm text-destructive">{error}</p>}
           {run?.action === "ingest" && <RunStatus run={run} />}

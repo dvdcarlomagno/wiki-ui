@@ -4,7 +4,7 @@
   "private": false,
   "license": "MIT",
   "scripts": {
-    "dev": "env -u GITHUB_TOKEN -u WIKI_GITHUB_TOKEN -u APP_PASSWORD -u AUTH_SECRET -u DEFAULT_WIKI_REPO_URL -u OPENROUTER_API_KEY -u CURSOR_API_KEY next dev --turbopack",
+    "dev": "env -u GITHUB_TOKEN -u WIKI_GITHUB_TOKEN -u APP_PASSWORD -u AUTH_SECRET -u DEFAULT_WIKI_REPO_URL -u SKILLS_REPO_URL -u SKILLS_LOCAL_DIR -u OPENROUTER_API_KEY -u CURSOR_API_KEY next dev --turbopack",
     "build": "next build",
     "start": "next start",
     "lint": "eslint ."

@@ -7,25 +7,46 @@ export type SkillName = "ingest" | "query" | "lint";
 export type LoadedSkill = {
   name: SkillName;
   content: string;
-  source: "github" | "fallback";
+  source: "local" | "github" | "fallback";
   warning?: string;
 };
 
+function skillsRepoUrl(wikiRepoUrl: string) {
+  return process.env.SKILLS_REPO_URL?.trim() || wikiRepoUrl;
+}
+
+function skillsLocalDir() {
+  return process.env.SKILLS_LOCAL_DIR?.trim() || "";
+}
+
 async function readFallback(name: SkillName) {
-  const file = path.join(
-    process.cwd(),
-    "skills-fallback",
-    `${name}.md`,
-  );
+  const file = path.join(process.cwd(), "skills-fallback", `${name}.md`);
   return readFile(file, "utf8");
+}
+
+async function readLocalSkill(name: SkillName) {
+  const dir = skillsLocalDir();
+  if (!dir) return null;
+  try {
+    const content = await readFile(path.join(dir, `${name}.md`), "utf8");
+    return content.trim() ? content : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function loadSkill(
   repoUrl: string,
   name: SkillName,
 ): Promise<LoadedSkill> {
+  const local = await readLocalSkill(name);
+  if (local) {
+    return { name, content: local, source: "local" };
+  }
+
+  const remoteRepo = skillsRepoUrl(repoUrl);
   try {
-    const remote = await getFileContent(repoUrl, `skills/${name}.md`);
+    const remote = await getFileContent(remoteRepo, `skills/${name}.md`);
     if (remote?.trim()) {
       return { name, content: remote, source: "github" };
     }
@@ -41,11 +62,14 @@ export async function loadSkill(
   }
 
   const fallback = await readFallback(name);
+  const fromSkillsRepo = remoteRepo !== repoUrl;
   return {
     name,
     content: fallback,
     source: "fallback",
-    warning: `skills/${name}.md missing in repo; using bundled fallback`,
+    warning: fromSkillsRepo
+      ? `skills/${name}.md missing in ${remoteRepo}; using bundled fallback`
+      : `skills/${name}.md missing in repo; using bundled fallback`,
   };
 }
 

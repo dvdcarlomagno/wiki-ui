@@ -31,8 +31,8 @@ export function IngestSlider({ disabled = false, busy = false, onConfirm }: Prop
   const measure = useCallback(() => {
     const track = trackRef.current;
     if (!track) return;
-    const thumb = 44;
-    const pad = 4;
+    const thumb = 36; // size-9
+    const pad = 4; // left-1
     setMaxTravel(Math.max(0, track.clientWidth - thumb - pad * 2));
   }, []);
 
@@ -160,10 +160,12 @@ export function IngestSlider({ disabled = false, busy = false, onConfirm }: Prop
 
       <div
         aria-hidden
-        className="pointer-events-none absolute top-1 left-1 z-10 flex size-9 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm"
+        className="pointer-events-none absolute top-1/2 left-1 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm"
         style={{
-          transform: `translateX(${x}px)`,
-          transition: dragging.current ? "none" : "transform 180ms ease-out",
+          transform: `translate(${x}px, -50%)`,
+          transition: dragging.current
+            ? "none"
+            : "transform 180ms ease-out",
         }}
       >
         <ChevronRight className="size-4" />
