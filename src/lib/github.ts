@@ -35,16 +35,61 @@ function githubHeaders() {
   return headers;
 }
 
+async function readGithubJson(res: Response, context: string) {
+  const contentType = res.headers.get("content-type") || "";
+  const text = await res.text();
+
+  if (!contentType.includes("application/json")) {
+    const preview = text.replace(/\s+/g, " ").trim().slice(0, 160);
+    throw new Error(
+      `GitHub returned non-JSON for ${context} (${res.status}). ${preview || "Empty body."}`,
+    );
+  }
+
+  let data: unknown;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    throw new Error(
+      `GitHub returned invalid JSON for ${context} (${res.status}).`,
+    );
+  }
+
+  if (!res.ok) {
+    const message =
+      data &&
+      typeof data === "object" &&
+      "message" in data &&
+      typeof (data as { message?: unknown }).message === "string"
+        ? (data as { message: string }).message
+        : `GitHub error ${res.status}`;
+
+    if (
+      res.status === 404 &&
+      !githubToken() &&
+      /not found/i.test(message)
+    ) {
+      throw new Error(
+        `${message} — if this wiki repo is private, set WIKI_GITHUB_TOKEN or GITHUB_TOKEN in .env.local (a fine-grained or classic PAT with repo contents read).`,
+      );
+    }
+
+    throw new Error(`${message} (${context})`);
+  }
+
+  return data;
+}
+
 export async function getDefaultBranch(repoUrl: string) {
   const { owner, repo } = parseGithubRepoUrl(repoUrl);
   const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
     headers: githubHeaders(),
     cache: "no-store",
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data?.message || `GitHub repo error ${res.status}`);
-  }
+  const data = (await readGithubJson(
+    res,
+    `repo ${owner}/${repo}`,
+  )) as { default_branch?: string };
   return String(data.default_branch || "main");
 }
 
@@ -57,10 +102,10 @@ export async function getFileContent(
   const api = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path).replace(/%2F/g, "/")}?ref=${encodeURIComponent(ref)}`;
   const res = await fetch(api, { headers: githubHeaders(), cache: "no-store" });
   if (res.status === 404) return null;
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data?.message || `GitHub error ${res.status} for ${path}`);
-  }
+  const data = (await readGithubJson(res, path)) as {
+    encoding?: string;
+    content?: string;
+  };
   if (data.encoding === "base64" && typeof data.content === "string") {
     return Buffer.from(data.content.replace(/\n/g, ""), "base64").toString(
       "utf8",
@@ -71,16 +116,17 @@ export async function getFileContent(
 
 type GhTreeItem = { path: string; type: string };
 
-export async function listWikiMarkdownFiles(repoUrl: string, ref = "main") {
+export async function listWikiMarkdownFiles(repoUrl: string, ref?: string) {
   const { owner, repo } = parseGithubRepoUrl(repoUrl);
+  const branch = ref || (await getDefaultBranch(repoUrl));
   const res = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/git/trees/${encodeURIComponent(ref)}?recursive=1`,
+    `https://api.github.com/repos/${owner}/${repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
     { headers: githubHeaders(), cache: "no-store" },
   );
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data?.message || `GitHub tree error ${res.status}`);
-  }
+  const data = (await readGithubJson(
+    res,
+    `tree ${owner}/${repo}@${branch}`,
+  )) as { tree?: GhTreeItem[] };
   const tree = (data.tree || []) as GhTreeItem[];
   return tree
     .filter(
@@ -125,10 +171,7 @@ export async function listRecentCommits(
     `https://api.github.com/repos/${owner}/${repo}/commits?${params}`,
     { headers: githubHeaders(), cache: "no-store" },
   );
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data?.message || `GitHub commits error ${res.status}`);
-  }
+  const data = await readGithubJson(res, `commits ${owner}/${repo}`);
 
   const items = (Array.isArray(data) ? data : []) as GhCommit[];
   return items

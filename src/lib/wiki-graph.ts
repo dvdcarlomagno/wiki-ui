@@ -1,4 +1,8 @@
-import { getFileContent, listWikiMarkdownFiles } from "@/lib/github";
+import {
+  getDefaultBranch,
+  getFileContent,
+  listWikiMarkdownFiles,
+} from "@/lib/github";
 
 export type GraphNode = {
   id: string;
@@ -56,7 +60,8 @@ function extractLinks(markdown: string) {
 }
 
 export async function buildWikiGraph(repoUrl: string) {
-  const paths = await listWikiMarkdownFiles(repoUrl);
+  const ref = await getDefaultBranch(repoUrl);
+  const paths = await listWikiMarkdownFiles(repoUrl, ref);
   const nodes: GraphNode[] = paths.map((p) => ({
     id: slugFromPath(p),
     name: titleFromPath(p),
@@ -67,7 +72,7 @@ export async function buildWikiGraph(repoUrl: string) {
   const edgeKeys = new Set<string>();
 
   for (const p of paths) {
-    const content = await getFileContent(repoUrl, p);
+    const content = await getFileContent(repoUrl, p, ref);
     if (!content) continue;
     const source = slugFromPath(p);
     for (const target of extractLinks(content)) {

@@ -38,7 +38,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `GITHUB_TOKEN` / `WIKI_GITHUB_TOKEN` | recommended | GitHub token for private wiki repos / higher rate limits |
 | `NEXT_PUBLIC_APP_URL` | no | Public app URL (default `http://localhost:3000`) |
 
-`npm run dev` unsets a shell `GITHUB_TOKEN` so an empty exported value cannot block `.env.local`. Prefer `WIKI_GITHUB_TOKEN` if your shell already defines `GITHUB_TOKEN`.
+`npm run dev` unsets common shell env keys (`GITHUB_TOKEN`, `WIKI_GITHUB_TOKEN`, `APP_PASSWORD`, etc.) so empty exported values cannot override `.env.local`. Prefer `WIKI_GITHUB_TOKEN` for private wiki repos.
 
 ## Wiki repository expectations
 
