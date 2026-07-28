@@ -31,8 +31,8 @@ export function IngestSlider({ disabled = false, busy = false, onConfirm }: Prop
   const measure = useCallback(() => {
     const track = trackRef.current;
     if (!track) return;
-    const thumb = 36; // size-9
-    const pad = 4; // left-1
+    const thumb = 36;
+    const pad = 4;
     setMaxTravel(Math.max(0, track.clientWidth - thumb - pad * 2));
   }, []);
 
@@ -138,7 +138,7 @@ export function IngestSlider({ disabled = false, busy = false, onConfirm }: Prop
         dragging.current = false;
         setProgress(0);
       }}
-      className="relative h-11 min-w-0 flex-1 touch-none select-none overflow-hidden rounded-full border border-border bg-muted/70 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+      className="relative flex h-11 min-w-0 flex-1 touch-none select-none items-center overflow-hidden rounded-full border border-border bg-muted/70 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
       style={{
         opacity: disabled ? 0.5 : 1,
         cursor: disabled || busy ? "not-allowed" : "grab",
@@ -160,15 +160,15 @@ export function IngestSlider({ disabled = false, busy = false, onConfirm }: Prop
 
       <div
         aria-hidden
-        className="pointer-events-none absolute top-1 bottom-1 left-1 z-10 aspect-square rounded-full border border-border bg-background text-foreground shadow-sm"
+        className="pointer-events-none absolute left-1 z-10 flex size-9 items-center justify-center rounded-full border border-border bg-background text-foreground"
         style={{
-          transform: `translateX(${x}px)`,
-          transition: dragging.current ? "none" : "transform 180ms ease-out",
+          top: "50%",
+          // Use CSS `translate` only (not `transform`) so nothing fights vertical centering.
+          translate: `${x}px -50%`,
+          transition: dragging.current ? "none" : "translate 180ms ease-out",
         }}
       >
-        <div className="flex size-full items-center justify-center">
-          <ChevronRight className="size-4" />
-        </div>
+        <ChevronRight className="size-4" />
       </div>
     </div>
   );
