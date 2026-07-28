@@ -187,13 +187,13 @@ export function Composer({
         )}
         <Button
           type="button"
-          size="icon"
-          className="ml-auto size-11 shrink-0 rounded-full"
+          className="ml-auto h-11 shrink-0 gap-1.5 rounded-full px-4"
           disabled={!!busy || queryDisabled}
           onClick={() => submit("query")}
           aria-label={busy === "query" ? "Query in progress" : "Query"}
         >
-          <Search className="size-5" />
+          <Search className="size-4" />
+          {busy === "query" ? "…" : "Query"}
         </Button>
       </div>
     </div>
