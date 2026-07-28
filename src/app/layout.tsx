@@ -13,10 +13,62 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
+  "http://localhost:3000";
+
+const siteDescription =
+  "Open-source UI for the LLM Wiki pattern — query and ingest a markdown knowledge base with OpenRouter and Cursor agents.";
+
 export const metadata: Metadata = {
-  title: "wiki-ui",
-  description: "Open-source UI for the LLM Wiki pattern",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "wiki-ui",
+    template: "%s · wiki-ui",
+  },
+  description: siteDescription,
   applicationName: "wiki-ui",
+  keywords: [
+    "wiki-ui",
+    "LLM wiki",
+    "knowledge base",
+    "OpenRouter",
+    "Cursor agents",
+    "markdown wiki",
+    "open source",
+  ],
+  authors: [{ name: "Davide Carlomagno" }],
+  creator: "Davide Carlomagno",
+  publisher: "wiki-ui",
+  category: "productivity",
+  robots: {
+    index: true,
+    follow: true,
+  },
+  alternates: {
+    canonical: "/",
+  },
+  manifest: "/site.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png", sizes: "32x32" },
+    ],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "/",
+    siteName: "wiki-ui",
+    title: "wiki-ui",
+    description: siteDescription,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "wiki-ui",
+    description: siteDescription,
+  },
 };
 
 export const viewport: Viewport = {
