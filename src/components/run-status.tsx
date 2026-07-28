@@ -127,8 +127,8 @@ export function RunStatus({ run, wikiNodes }: Props) {
   const renderMarkdown = Boolean(detail && looksLikeMarkdown(detail));
 
   return (
-    <Card className="shrink-0 overflow-visible border-border bg-card/90">
-      <CardHeader className="space-y-2 pb-2">
+    <Card className="w-full min-w-0 shrink-0 rounded-2xl border border-border bg-card/90 py-3 shadow-sm ring-0 backdrop-blur-[16px]">
+      <CardHeader className="space-y-2 px-3 pb-2">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-base capitalize">{run.action}</CardTitle>
           <Badge variant="outline">{status}</Badge>
@@ -137,35 +137,35 @@ export function RunStatus({ run, wikiNodes }: Props) {
           <p className="text-xs text-muted-foreground">{run.model}</p>
         )}
         {run.question && (
-          <div className="rounded-xl bg-muted px-3 py-2">
+          <div className="min-w-0 rounded-xl bg-muted px-3 py-2">
             <p className="text-[10px] font-medium tracking-[0.12em] uppercase text-muted-foreground">
               Question
             </p>
-            <p className="mt-1 text-sm leading-snug text-foreground">
+            <p className="mt-1 break-words text-sm leading-snug text-foreground">
               {run.question}
             </p>
           </div>
         )}
         {run.warning && (
-          <p className="text-xs text-amber-700 dark:text-amber-400">
+          <p className="break-words text-xs text-amber-700 dark:text-amber-400">
             {run.warning}
           </p>
         )}
       </CardHeader>
-      <CardContent className="space-y-3 text-sm">
+      <CardContent className="min-w-0 space-y-3 px-3 text-sm">
         {run.url && (
           <a
             href={run.url}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1 text-foreground underline-offset-4 hover:underline"
+            className="inline-flex max-w-full items-center gap-1 break-all text-foreground underline-offset-4 hover:underline"
           >
-            Open Cursor agent <ExternalLink className="size-3.5" />
+            Open Cursor agent <ExternalLink className="size-3.5 shrink-0" />
           </a>
         )}
-        {error && <p className="text-destructive">{error}</p>}
+        {error && <p className="break-words text-destructive">{error}</p>}
         {detail && renderMarkdown && (
-          <div className="rounded-xl bg-muted p-3">
+          <div className="min-w-0 overflow-hidden rounded-xl bg-muted p-3">
             <MarkdownView
               content={detail}
               nodes={nodes}
@@ -176,7 +176,7 @@ export function RunStatus({ run, wikiNodes }: Props) {
           </div>
         )}
         {detail && !renderMarkdown && (
-          <div className="whitespace-pre-wrap rounded-xl bg-muted p-3 text-sm leading-relaxed text-foreground">
+          <div className="whitespace-pre-wrap break-words rounded-xl bg-muted p-3 text-sm leading-relaxed text-foreground">
             {detail}
           </div>
         )}

@@ -223,7 +223,7 @@ export default function HomePage() {
         </div>
       ) : (
         <>
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pb-4">
+          <div className="min-h-0 w-full min-w-0 flex-1 space-y-4 overflow-x-hidden overflow-y-auto overscroll-contain pt-0.5 pb-4">
             {exchanges.map((exchange) => (
               <RunStatus
                 key={exchange.id}
@@ -234,7 +234,7 @@ export default function HomePage() {
             {error && <p className="text-sm text-destructive">{error}</p>}
             <div ref={threadEndRef} />
           </div>
-          <div className="shrink-0 border-t border-border bg-background/92 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] backdrop-blur-[16px]">
+          <div className="w-full min-w-0 shrink-0 border-t border-border bg-background/92 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] backdrop-blur-[16px]">
             {composer}
           </div>
         </>

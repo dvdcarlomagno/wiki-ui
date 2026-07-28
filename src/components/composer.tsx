@@ -5,8 +5,29 @@ import { Paperclip, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { ComposerAura } from "@/components/composer-aura";
 import { IngestSlider } from "@/components/ingest-slider";
 import type { PriorTurn } from "@/lib/conversations";
+
+function WavingDots() {
+  return (
+    <span
+      className="inline-flex h-[1em] w-[1.6em] items-center justify-center gap-[0.2em]"
+      aria-hidden
+    >
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="query-dot-wave inline-block size-[0.28em] rounded-full bg-current"
+          style={{
+            animation: "query-dot-wave 0.95s ease-in-out infinite",
+            animationDelay: `${i * 0.15}s`,
+          }}
+        />
+      ))}
+    </span>
+  );
+}
 
 export type RunLaunch = {
   action: "ingest" | "query";
@@ -110,8 +131,8 @@ export function Composer({
     }
   }
 
-  return (
-    <div className="rounded-2xl border border-border bg-card/90 p-3 shadow-sm backdrop-blur-[16px]">
+  const shell = (
+    <div className="w-full min-w-0 rounded-2xl border border-border bg-card/90 p-3 shadow-sm backdrop-blur-[16px]">
       {queryDisabled && (
         <p className="mb-2 rounded-xl bg-muted px-3 py-2 text-sm text-foreground">
           You have reached 5 exchanges in this chat. Use{" "}
@@ -191,11 +212,16 @@ export function Composer({
           disabled={!!busy || queryDisabled}
           onClick={() => submit("query")}
           aria-label={busy === "query" ? "Query in progress" : "Query"}
+          aria-busy={busy === "query"}
         >
           <Search className="size-4" />
-          {busy === "query" ? "…" : "Query"}
+          {busy === "query" ? <WavingDots /> : "Query"}
         </Button>
       </div>
     </div>
   );
+
+  // Aura only on the empty-state centered composer — not in chat mode.
+  if (compact) return shell;
+  return <ComposerAura>{shell}</ComposerAura>;
 }

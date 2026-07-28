@@ -31,8 +31,8 @@ Open [http://localhost:3000](http://localhost:3000).
 | `APP_PASSWORD` | yes | Shared operator password |
 | `AUTH_SECRET` | recommended | JWT signing secret (falls back to `APP_PASSWORD` in dev) |
 | `DEFAULT_WIKI_REPO_URL` | yes | `https://github.com/OWNER/wiki-repo` |
-| `SKILLS_REPO_URL` | no | GitHub repo for `skills/*.md` (defaults to wiki repo) |
-| `SKILLS_LOCAL_DIR` | no | Local folder containing `query.md` / `ingest.md` / `lint.md` (wins over GitHub) |
+| `SKILLS_REPO_URL` | no | GitHub repo for `skills/*.md` (defaults to wiki repo; used after local/`skills/`) |
+| `SKILLS_LOCAL_DIR` | no | Absolute folder with `query.md` / `ingest.md` / `lint.md` (highest priority) |
 | `OPENROUTER_API_KEY` | for Query | OpenRouter API key |
 | `OPENROUTER_MODEL` | no | Default `deepseek/deepseek-v4-flash` |
 | `CURSOR_API_KEY` | for Ingest | Cursor Cloud Agents API key |
@@ -47,7 +47,8 @@ Open [http://localhost:3000](http://localhost:3000).
 Point `DEFAULT_WIKI_REPO_URL` at a GitHub markdown wiki. The UI works best when the repo includes:
 
 - Wiki pages under `wiki/` (or linked markdown the graph can parse)
-- Optional agent skills at `skills/query.md`, `skills/ingest.md`, `skills/lint.md` (see `skills-fallback/` for defaults)
+- Optional agent skills at `skills/query.md`, `skills/ingest.md`, `skills/lint.md` in the wiki repo
+- This app also ships repo skills in `skills/` (synced from ciclamino-ai/llm-wiki) and `skills-fallback/`
 
 ## Features
 

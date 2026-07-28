@@ -128,3 +128,23 @@
     @apply font-sans;
   }
 }
+
+@keyframes query-dot-wave {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translateY(-0.28em);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .query-dot-wave {
+    animation: none !important;
+    opacity: 0.7;
+    transform: none;
+  }
+}

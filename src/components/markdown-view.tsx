@@ -23,7 +23,7 @@ export function MarkdownView({ content, nodes = [], onWikiNode }: Props) {
   const prepared = rewriteWikiLinks(content, nodes);
 
   return (
-    <div className="wiki-md prose prose-neutral max-w-none text-foreground">
+    <div className="wiki-md prose prose-neutral max-w-none break-words text-foreground [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_code]:break-all">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         urlTransform={urlTransform}

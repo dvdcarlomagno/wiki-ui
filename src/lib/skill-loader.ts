@@ -7,7 +7,7 @@ export type SkillName = "ingest" | "query" | "lint";
 export type LoadedSkill = {
   name: SkillName;
   content: string;
-  source: "local" | "github" | "fallback";
+  source: "local" | "repo" | "github" | "fallback";
   warning?: string;
 };
 
@@ -19,20 +19,28 @@ function skillsLocalDir() {
   return process.env.SKILLS_LOCAL_DIR?.trim() || "";
 }
 
-async function readFallback(name: SkillName) {
-  const file = path.join(process.cwd(), "skills-fallback", `${name}.md`);
-  return readFile(file, "utf8");
-}
-
-async function readLocalSkill(name: SkillName) {
-  const dir = skillsLocalDir();
-  if (!dir) return null;
+async function readSkillFile(dir: string, name: SkillName) {
   try {
     const content = await readFile(path.join(dir, `${name}.md`), "utf8");
     return content.trim() ? content : null;
   } catch {
     return null;
   }
+}
+
+async function readFallback(name: SkillName) {
+  const file = path.join(process.cwd(), "skills-fallback", `${name}.md`);
+  return readFile(file, "utf8");
+}
+
+async function readBundledSkill(name: SkillName) {
+  return readSkillFile(path.join(process.cwd(), "skills"), name);
+}
+
+async function readLocalSkill(name: SkillName) {
+  const dir = skillsLocalDir();
+  if (!dir) return null;
+  return readSkillFile(dir, name);
 }
 
 export async function loadSkill(
@@ -42,6 +50,11 @@ export async function loadSkill(
   const local = await readLocalSkill(name);
   if (local) {
     return { name, content: local, source: "local" };
+  }
+
+  const bundled = await readBundledSkill(name);
+  if (bundled) {
+    return { name, content: bundled, source: "repo" };
   }
 
   const remoteRepo = skillsRepoUrl(repoUrl);
