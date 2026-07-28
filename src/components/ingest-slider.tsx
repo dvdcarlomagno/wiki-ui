@@ -138,7 +138,7 @@ export function IngestSlider({ disabled = false, busy = false, onConfirm }: Prop
         dragging.current = false;
         setProgress(0);
       }}
-      className="relative flex h-11 w-[9.5rem] shrink-0 touch-none select-none items-center overflow-hidden rounded-full border border-border bg-muted/70 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+      className="relative flex h-11 min-w-0 flex-1 touch-none select-none items-center overflow-hidden rounded-full border border-border bg-muted/70 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
       style={{
         opacity: disabled ? 0.5 : 1,
         cursor: disabled || busy ? "not-allowed" : "grab",
@@ -150,7 +150,7 @@ export function IngestSlider({ disabled = false, busy = false, onConfirm }: Prop
       />
 
       <div
-        className="pointer-events-none absolute inset-0 flex items-center justify-center gap-1.5 text-sm font-medium text-foreground"
+        className="pointer-events-none absolute inset-0 flex items-center justify-center gap-1.5 pl-10 text-sm font-medium text-foreground"
         style={{ opacity: labelOpacity }}
       >
         <Download className="size-4" />
