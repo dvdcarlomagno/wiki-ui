@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ClipboardEvent, type DragEvent } from "react";
 import { Paperclip, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,6 +8,19 @@ import { Badge } from "@/components/ui/badge";
 import { ComposerAura } from "@/components/composer-aura";
 import { IngestSlider } from "@/components/ingest-slider";
 import type { PriorTurn } from "@/lib/conversations";
+
+function filesFromDataTransfer(dt: DataTransfer | null): File[] {
+  if (!dt) return [];
+  const fromFiles = dt.files?.length ? Array.from(dt.files) : [];
+  if (fromFiles.length) return fromFiles;
+  const fromItems: File[] = [];
+  for (const item of Array.from(dt.items || [])) {
+    if (item.kind !== "file") continue;
+    const file = item.getAsFile();
+    if (file) fromItems.push(file);
+  }
+  return fromItems;
+}
 
 function WavingDots() {
   return (
@@ -65,15 +78,60 @@ export function Composer({
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState<"ingest" | "query" | null>(null);
+  const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dragDepthRef = useRef(0);
 
-  function addFiles(list: FileList | null) {
-    if (!list?.length) return;
-    setFiles((prev) => [...prev, ...Array.from(list)]);
+  function addFiles(list: FileList | File[] | null) {
+    if (!list) return;
+    const next = Array.from(list).filter((f) => f.size > 0);
+    if (!next.length) return;
+    setFiles((prev) => [...prev, ...next]);
   }
 
   function removeFile(index: number) {
     setFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function handlePaste(e: ClipboardEvent<HTMLElement>) {
+    if (queryDisabled || busy) return;
+    const pasted = filesFromDataTransfer(e.clipboardData);
+    if (!pasted.length) return;
+    e.preventDefault();
+    addFiles(pasted);
+  }
+
+  function handleDragEnter(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (queryDisabled || busy) return;
+    dragDepthRef.current += 1;
+    if (e.dataTransfer.types.includes("Files")) setDragging(true);
+  }
+
+  function handleDragLeave(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) setDragging(false);
+  }
+
+  function handleDragOver(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (queryDisabled || busy) return;
+    if (e.dataTransfer.types.includes("Files")) {
+      e.dataTransfer.dropEffect = "copy";
+    }
+  }
+
+  function handleDrop(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    dragDepthRef.current = 0;
+    setDragging(false);
+    if (queryDisabled || busy) return;
+    addFiles(filesFromDataTransfer(e.dataTransfer));
   }
 
   async function submit(action: "ingest" | "query") {
@@ -132,7 +190,18 @@ export function Composer({
   }
 
   const shell = (
-    <div className="w-full min-w-0 rounded-2xl border border-border bg-card/90 p-3 shadow-sm backdrop-blur-[16px]">
+    <div
+      className={`w-full min-w-0 rounded-2xl border bg-card/90 p-3 shadow-sm backdrop-blur-[16px] transition-colors ${
+        dragging
+          ? "border-foreground/40 bg-muted/40"
+          : "border-border"
+      }`}
+      onPaste={handlePaste}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       {queryDisabled && (
         <p className="mb-2 rounded-xl bg-muted px-3 py-2 text-sm text-foreground">
           You have reached 5 exchanges in this chat. Use{" "}
@@ -180,7 +249,6 @@ export function Composer({
           type="file"
           multiple
           className="hidden"
-          accept="image/*,.md,.txt,.pdf,.csv,.json"
           onChange={(e) => {
             addFiles(e.target.files);
             e.target.value = "";

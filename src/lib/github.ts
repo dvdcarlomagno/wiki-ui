@@ -114,6 +114,80 @@ export async function getFileContent(
   return null;
 }
 
+export type PutRepoFileResult = {
+  path: string;
+  sha: string;
+  htmlUrl?: string;
+};
+
+/**
+ * Create or update a file via the GitHub Contents API (base64).
+ * Required for staging binary attachments before Cursor agent ingest —
+ * the Cloud Agents API only accepts prompt text + raster images.
+ */
+export async function putRepoFile(opts: {
+  repoUrl: string;
+  path: string;
+  content: Buffer | string;
+  message: string;
+  branch?: string;
+}): Promise<PutRepoFileResult> {
+  if (!githubToken()) {
+    throw new Error(
+      "WIKI_GITHUB_TOKEN or GITHUB_TOKEN with contents:write is required to upload attachments before ingest",
+    );
+  }
+
+  const { owner, repo } = parseGithubRepoUrl(opts.repoUrl);
+  const branch = opts.branch || (await getDefaultBranch(opts.repoUrl));
+  const encodedPath = opts.path
+    .split("/")
+    .map((p) => encodeURIComponent(p))
+    .join("/");
+  const api = `https://api.github.com/repos/${owner}/${repo}/contents/${encodedPath}`;
+
+  let sha: string | undefined;
+  const existing = await fetch(
+    `${api}?ref=${encodeURIComponent(branch)}`,
+    { headers: githubHeaders(), cache: "no-store" },
+  );
+  if (existing.ok) {
+    const data = (await existing.json()) as { sha?: string };
+    if (typeof data.sha === "string") sha = data.sha;
+  }
+
+  const content = Buffer.isBuffer(opts.content)
+    ? opts.content.toString("base64")
+    : Buffer.from(opts.content, "utf8").toString("base64");
+
+  const res = await fetch(api, {
+    method: "PUT",
+    headers: {
+      ...githubHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      message: opts.message,
+      content,
+      branch,
+      ...(sha ? { sha } : {}),
+    }),
+  });
+
+  const data = (await readGithubJson(
+    res,
+    `put ${opts.path}`,
+  )) as {
+    content?: { sha?: string; html_url?: string; path?: string };
+  };
+
+  return {
+    path: data.content?.path || opts.path,
+    sha: String(data.content?.sha || ""),
+    htmlUrl: data.content?.html_url,
+  };
+}
+
 type GhTreeItem = { path: string; type: string };
 
 export async function listWikiMarkdownFiles(repoUrl: string, ref?: string) {

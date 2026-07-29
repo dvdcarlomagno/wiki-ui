@@ -57,7 +57,7 @@ function parseHistory(raw: FormDataEntryValue | null): HistoryTurn[] {
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
-    const form = await parseAgentForm(formData);
+    const form = await parseAgentForm(formData, { purpose: "query" });
     const { text, repoUrl, images } = form;
     if (!text.trim()) {
       return NextResponse.json(

@@ -1,4 +1,5 @@
 import type { CursorImage } from "@/lib/cursor-agents";
+import { extractPdfText } from "@/lib/pdf-text";
 
 const IMAGE_MIME = new Set([
   "image/png",
@@ -7,8 +8,12 @@ const IMAGE_MIME = new Set([
   "image/webp",
 ]);
 
-const TEXT_EXT = /\.(md|txt|csv|json|tsv|log|html|htm|xml|yaml|yml|ts|tsx|js|jsx|py|rs|go|css|svg)$/i;
+const TEXT_EXT =
+  /\.(md|txt|csv|json|tsv|log|html|htm|xml|yaml|yml|ts|tsx|js|jsx|py|rs|go|css|svg)$/i;
 const MAX_TEXT_CHARS = 24_000;
+const MAX_PDF_CHARS = 80_000;
+/** Keep under Next middleware/proxy body limits and GitHub Contents API comfort zone. */
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 
 export type TextAttachment = {
   name: string;
@@ -24,6 +29,15 @@ export type BinaryAttachment = {
   note: string;
 };
 
+/** Original bytes to commit into the wiki repo before launching a Cursor agent. */
+export type PendingUpload = {
+  name: string;
+  mime: string;
+  buf: Buffer;
+  /** text → raw/; asset → raw/assets/ */
+  kind: "text" | "asset";
+};
+
 export type ParsedAgentForm = {
   text: string;
   repoUrl: string;
@@ -31,8 +45,14 @@ export type ParsedAgentForm = {
   imageNames: string[];
   textAttachments: TextAttachment[];
   binaryAttachments: BinaryAttachment[];
+  pendingUploads: PendingUpload[];
   /** Ingest-oriented notes (kept for Cursor agent prompts). */
   attachmentNotes: string;
+};
+
+export type ParseAgentFormOptions = {
+  /** query = extract or fail; ingest = extract when possible + stage originals. */
+  purpose?: "ingest" | "query";
 };
 
 export function defaultWikiRepoUrl() {
@@ -43,6 +63,10 @@ export function defaultWikiRepoUrl() {
     );
   }
   return url;
+}
+
+function isPdfFile(name: string, mime: string) {
+  return mime === "application/pdf" || name.toLowerCase().endsWith(".pdf");
 }
 
 function isTextFile(name: string, mime: string) {
@@ -62,7 +86,6 @@ function isTextFile(name: string, mime: string) {
 function looksLikeUtf8Text(buf: Buffer) {
   if (buf.byteLength === 0) return false;
   const sample = buf.subarray(0, Math.min(buf.byteLength, 2048));
-  // Reject obvious binary (NUL bytes).
   if (sample.includes(0)) return false;
   try {
     const decoded = sample.toString("utf8");
@@ -110,7 +133,20 @@ export function attachmentUrlSourceText(form: ParsedAgentForm): string {
   return form.textAttachments.map((f) => f.content).join("\n");
 }
 
-export async function parseAgentForm(formData: FormData): Promise<ParsedAgentForm> {
+export function stagingPathForUpload(upload: PendingUpload, date = new Date()) {
+  const day = date.toISOString().slice(0, 10);
+  const safe = upload.name.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 120);
+  const base = safe || "attachment";
+  return upload.kind === "text"
+    ? `raw/${day}-${base}`
+    : `raw/assets/${day}-${base}`;
+}
+
+export async function parseAgentForm(
+  formData: FormData,
+  options?: ParseAgentFormOptions,
+): Promise<ParsedAgentForm> {
+  const purpose = options?.purpose ?? "ingest";
   const text = String(formData.get("text") || "").trim();
   const repoUrl = defaultWikiRepoUrl();
   const files = formData
@@ -125,16 +161,20 @@ export async function parseAgentForm(formData: FormData): Promise<ParsedAgentFor
   const imageNames: string[] = [];
   const textAttachments: TextAttachment[] = [];
   const binaryAttachments: BinaryAttachment[] = [];
+  const pendingUploads: PendingUpload[] = [];
   const attachmentNotes: string[] = [];
 
   for (const file of files) {
     const mime = file.type || "application/octet-stream";
     const buf = Buffer.from(await file.arrayBuffer());
 
+    if (buf.byteLength > MAX_ATTACHMENT_BYTES) {
+      throw new Error(
+        `Attachment ${file.name} exceeds 10MB. Use a smaller file or paste the text.`,
+      );
+    }
+
     if (IMAGE_MIME.has(mime) && images.length < 5) {
-      if (buf.byteLength > 15 * 1024 * 1024) {
-        throw new Error(`Image ${file.name} exceeds 15MB`);
-      }
       images.push({
         data: buf.toString("base64"),
         mimeType: mime as CursorImage["mimeType"],
@@ -143,6 +183,37 @@ export async function parseAgentForm(formData: FormData): Promise<ParsedAgentFor
       attachmentNotes.push(
         `- image: ${file.name} (${mime}) [attached to prompt]`,
       );
+      if (purpose === "ingest") {
+        pendingUploads.push({ name: file.name, mime, buf, kind: "asset" });
+      }
+      continue;
+    }
+
+    if (isPdfFile(file.name, mime)) {
+      const { text: pdfText, totalPages } = await extractPdfText(buf);
+      const truncated = pdfText.length > MAX_PDF_CHARS;
+      const content = truncated ? pdfText.slice(0, MAX_PDF_CHARS) : pdfText;
+      textAttachments.push({
+        name: file.name,
+        mime: mime || "application/pdf",
+        content,
+        truncated,
+      });
+      attachmentNotes.push(
+        [
+          `- file: ${file.name} (application/pdf, ${buf.byteLength} bytes, ${totalPages} pages)`,
+          "  Store under raw/assets/ as appropriate (original will be staged when ingesting).",
+          truncated
+            ? `  Extracted text (truncated to ${MAX_PDF_CHARS} chars):`
+            : "  Extracted text:",
+          "  ```",
+          content,
+          "  ```",
+        ].join("\n"),
+      );
+      if (purpose === "ingest") {
+        pendingUploads.push({ name: file.name, mime, buf, kind: "asset" });
+      }
       continue;
     }
 
@@ -159,31 +230,33 @@ export async function parseAgentForm(formData: FormData): Promise<ParsedAgentFor
       attachmentNotes.push(
         [
           `- file: ${file.name} (${mime}, ${buf.byteLength} bytes)`,
-          "  Store under raw/ or raw/assets/ as appropriate.",
+          "  Store under raw/ as appropriate.",
           "  Content/preview:",
           "  ```",
           content,
           "  ```",
         ].join("\n"),
       );
+      if (purpose === "ingest") {
+        pendingUploads.push({ name: file.name, mime, buf, kind: "text" });
+      }
       continue;
     }
 
-    const note =
-      mime === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
-        ? "PDF bytes not extracted in query mode — paste text or ingest the file"
-        : "binary content not extracted — describe it in text or ingest the file";
-    binaryAttachments.push({
-      name: file.name,
-      mime,
-      bytes: buf.byteLength,
-      note,
-    });
+    // Unsupported binary for LLM query — fail closed (no metadata-only answers).
+    if (purpose === "query") {
+      throw new Error(
+        `Cannot read attachment "${file.name}" (${mime}) for query. Use text, markdown, CSV, JSON, PDF with selectable text, or an image — or ingest the file first.`,
+      );
+    }
+
+    // Ingest: Cursor API has no binary file field — stage into the wiki repo instead.
+    pendingUploads.push({ name: file.name, mime, buf, kind: "asset" });
     attachmentNotes.push(
       [
         `- file: ${file.name} (${mime}, ${buf.byteLength} bytes)`,
-        "  Store under raw/ or raw/assets/ as appropriate.",
-        `  Content/preview: (${note})`,
+        "  Binary attachment — original bytes will be uploaded to raw/assets/ before the agent runs.",
+        "  Read the staged file from the repo; do not invent binary contents.",
       ].join("\n"),
     );
   }
@@ -195,6 +268,7 @@ export async function parseAgentForm(formData: FormData): Promise<ParsedAgentFor
     imageNames,
     textAttachments,
     binaryAttachments,
+    pendingUploads,
     attachmentNotes: attachmentNotes.join("\n"),
   };
 }
